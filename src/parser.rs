@@ -4,8 +4,8 @@ use crate::lexer::Token;
 
 #[derive(Debug, Clone)]
 struct LoopCounter {
-    start: usize,
-    loop_depth: usize,
+    start: Option<usize>,
+    loop_depth: Option<usize>,
 }
 
 #[derive(Debug, Clone)]
@@ -54,16 +54,21 @@ impl Parser {
         let mut ast = AbstractSyntaxTree(vec![]);
         let mut pointer_token_counter = 0;
         let mut value_token_counter = 0;
-        let mut loop_counter: Option<LoopCounter> = None;
+        let mut loop_counter: LoopCounter = LoopCounter {
+            start: None,
+            loop_depth: None,
+        };
 
         for (index, token) in self.0.iter().enumerate() {
-            if loop_counter.is_some() && *token != Token::LoopEnd {
+            if loop_counter.start.is_some() && *token != Token::LoopEnd {
                 if *token == Token::LoopStart {
-                    loop_counter.clone().unwrap().loop_depth += 1;
+                    loop_counter.loop_depth = Some(loop_counter.loop_depth.unwrap() + 1);
                 }
 
                 continue;
-            } else if pointer_token_counter != 0 && (*token != Token::PointerIncrease && *token != Token::PointerDecrease) {
+            }
+
+            if pointer_token_counter != 0 && (*token != Token::PointerIncrease && *token != Token::PointerDecrease) {
                 ast.0.push(ExpressionType::Pointer(pointer_token_counter));
                 pointer_token_counter = 0;
             } else if value_token_counter != 0 && (*token != Token::ValueIncrease && *token != Token::ValueDecrease) {
@@ -77,35 +82,42 @@ impl Parser {
                 Token::ValueIncrease => value_token_counter += 1,
                 Token::ValueDecrease => value_token_counter -= 1,
                 Token::LoopStart => {
-                    if loop_counter.is_some() {
+                    if loop_counter.start.is_some() {
                         panic!("Oh no");
                     }
 
-                    loop_counter = Some(LoopCounter {
-                        start: index,
-                        loop_depth: 0,
-                    });
+                    loop_counter = LoopCounter {
+                        start: Some(index),
+                        loop_depth: Some(0),
+                    };
                 },
                 Token::LoopEnd => {
-                    if loop_counter.is_none() {
-                        panic!("Loop is NOT started, {}", index);
-                    } 
+                    if loop_counter.start.is_none() {
+                        panic!("Loop not started, {}", index);
+                    }
 
-                    if loop_counter.clone().unwrap().loop_depth > 0 {
-                        loop_counter.clone().unwrap().loop_depth -= 1;
+                    if loop_counter.loop_depth.unwrap() > 0 {
+                        loop_counter.loop_depth = Some(loop_counter.loop_depth.unwrap() - 1);
                         continue
                     }
 
-                    let parser = Parser(self.0[loop_counter.unwrap().start + 1..index].to_vec());
+                    let parser = Parser(self.0[loop_counter.start.unwrap() + 1..index].to_vec());
 
                     ast.0.push(ExpressionType::Loop(parser.parse()));
 
-                    loop_counter = None;
+                    loop_counter.start = None;
+                    loop_counter.loop_depth = None;
                 },
                 Token::Input => ast.0.push(ExpressionType::Input),
                 Token::Output => ast.0.push(ExpressionType::Output),
                 Token::ProgramEnd => ast.0.push(ExpressionType::ProgramEnd),
             }
+        }
+
+        if pointer_token_counter != 0 {
+            ast.0.push(ExpressionType::Pointer(pointer_token_counter));
+        } else if value_token_counter != 0 {
+            ast.0.push(ExpressionType::Value(value_token_counter));
         }
 
         ast

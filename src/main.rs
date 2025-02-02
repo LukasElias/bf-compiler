@@ -15,5 +15,4 @@ fn main() {
     assembly::compile_ast(ast, &mut asm, &mut loop_counter);
 
     println!("{}", asm);
-
 }
