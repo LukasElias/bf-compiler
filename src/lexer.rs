@@ -3,7 +3,7 @@ use std::{
     io::Read,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Token {
     PointerIncrease,
     PointerDecrease,
@@ -13,6 +13,7 @@ pub enum Token {
     LoopEnd,
     Input,
     Output,
+    ProgramEnd,
 }
 
 pub fn generate_tokens(program_input: &mut File) -> Vec<Token> {
@@ -36,6 +37,8 @@ pub fn generate_tokens(program_input: &mut File) -> Vec<Token> {
 
         token_vec.push(token);
     }
+
+    token_vec.push(Token::ProgramEnd);
 
     token_vec
 }
